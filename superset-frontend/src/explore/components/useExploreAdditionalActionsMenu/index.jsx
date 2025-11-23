@@ -80,6 +80,9 @@ const MENU_KEYS = {
   VIEW_QUERY: 'view_query',
   RUN_IN_SQL_LAB: 'run_in_sql_lab',
   EXPORT_TO_PIVOT_XLSX: 'export_to_pivot_xlsx',
+
+  // NEW: unique key for Current View → CSV
+  EXPORT_CURRENT_TO_CSV: 'export_current_to_csv',
 };
 
 const VIZ_TYPES_PIVOTABLE = [VizType.PivotTable];
@@ -373,6 +376,29 @@ export const useExploreAdditionalActionsMenu = (
 
     currentViewChildren.push(
       {
+        key: MENU_KEYS.EXPORT_CURRENT_TO_CSV,
+        label: t('Export to .CSV'),
+        icon: <Icons.FileOutlined />,
+        disabled: !canDownloadCSV,
+        onClick: () => {
+          // Use 'results' to export the *current view* (as opposed to 'full').
+          // Pass ownState so client/UI state (e.g., filters) can be respected when supported.
+          exportChart({
+            formData: latestQueryFormData,
+            ownState,
+            resultType: 'results',
+            resultFormat: 'csv',
+          });
+          setIsDropdownVisible(false);
+          dispatch(
+            logEvent(LOG_ACTIONS_CHART_DOWNLOAD_AS_CSV, {
+              chartId: slice?.slice_id,
+              chartName: slice?.slice_name,
+            }),
+          );
+        },
+      },
+      {
         key: MENU_KEYS.EXPORT_TO_JSON,
         label: t('Export to .JSON'),
         icon: <Icons.FileOutlined />,
@@ -380,9 +406,12 @@ export const useExploreAdditionalActionsMenu = (
         onClick: () => {
           exportJson();
           setIsDropdownVisible(false);
-          dispatch(logEvent(LOG_ACTIONS_CHART_DOWNLOAD_AS_JSON, {
-            chartId: slice?.slice_id, chartName: slice?.slice_name,
-          }));
+          dispatch(
+            logEvent(LOG_ACTIONS_CHART_DOWNLOAD_AS_JSON, {
+              chartId: slice?.slice_id,
+              chartName: slice?.slice_name,
+            }),
+          );
         },
       },
       {
@@ -390,11 +419,19 @@ export const useExploreAdditionalActionsMenu = (
         label: t('Export screenshot (jpeg)'),
         icon: <Icons.FileImageOutlined />,
         onClick: e => {
-          downloadAsImage('.panel-body .chart-container', slice?.slice_name ?? t('New chart'), true, theme)(e.domEvent);
+          downloadAsImage(
+            '.panel-body .chart-container',
+            slice?.slice_name ?? t('New chart'),
+            true,
+            theme,
+          )(e.domEvent);
           setIsDropdownVisible(false);
-          dispatch(logEvent(LOG_ACTIONS_CHART_DOWNLOAD_AS_IMAGE, {
-            chartId: slice?.slice_id, chartName: slice?.slice_name,
-          }));
+          dispatch(
+            logEvent(LOG_ACTIONS_CHART_DOWNLOAD_AS_IMAGE, {
+              chartId: slice?.slice_id,
+              chartName: slice?.slice_name,
+            }),
+          );
         },
       },
       {
@@ -405,9 +442,12 @@ export const useExploreAdditionalActionsMenu = (
         onClick: () => {
           exportExcel();
           setIsDropdownVisible(false);
-          dispatch(logEvent(LOG_ACTIONS_CHART_DOWNLOAD_AS_XLS, {
-            chartId: slice?.slice_id, chartName: slice?.slice_name,
-          }));
+          dispatch(
+            logEvent(LOG_ACTIONS_CHART_DOWNLOAD_AS_XLS, {
+              chartId: slice?.slice_id,
+              chartName: slice?.slice_name,
+            }),
+          );
         },
       },
     );
@@ -588,6 +628,7 @@ export const useExploreAdditionalActionsMenu = (
     showDashboardSearch,
     slice,
     theme.sizeUnit,
+    ownState, // NEW: ensure this stays in deps since we use it above
   ]);
 
   return [menu, isDropdownVisible, setIsDropdownVisible];
