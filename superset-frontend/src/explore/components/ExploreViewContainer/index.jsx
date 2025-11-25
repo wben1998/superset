@@ -600,8 +600,12 @@ function ExploreViewContainer(props) {
     }
   });
 
+  // Prevent re-query loops 
+  const previousOwnState = usePrevious(props.ownState);
   useEffect(() => {
-    if (props.ownState !== undefined) {
+    const strip = s => (s && typeof s === 'object' ? omit(s, ['clientView']) : s);
+    // ignore clientView-only changes
+    if (!isEqual(strip(previousOwnState), strip(props.ownState))) {
       onQuery();
       reRenderChart();
     }
@@ -938,10 +942,13 @@ function mapStateToProps(state) {
   const form_data = isDeckGLChart ? getDeckGLFormData() : controlsBasedFormData;
 
   const slice_id = form_data.slice_id ?? slice?.slice_id ?? 0; // 0 - unsaved chart
+  // Exclude clientView from extra_form_data; keep other ownState pieces
+  const ownStateForQuery = omit(dataMask[slice_id]?.ownState, ['clientView']);
+
   form_data.extra_form_data = mergeExtraFormData(
     { ...form_data.extra_form_data },
     {
-      ...dataMask[slice_id]?.ownState,
+      ...ownStateForQuery,
     },
   );
   const chart = charts[slice_id];

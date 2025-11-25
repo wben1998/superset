@@ -88,6 +88,9 @@ export interface DataTableProps<D extends object> extends TableOptions<D> {
   searchInputId?: string;
   onSearchColChange: (searchCol: string) => void;
   searchOptions: SearchOption[];
+
+  // passes current filtered rows to parent
+  onFilteredRowsChange?: (rows: D[]) => void;
 }
 
 export interface RenderHTMLCellProps extends HTMLProps<HTMLTableCellElement> {
@@ -130,6 +133,7 @@ export default typedMemo(function DataTable<D extends object>({
   searchInputId,
   onSearchColChange,
   searchOptions,
+  onFilteredRowsChange,
   ...moreUseTableOptions
 }: DataTableProps<D>): JSX.Element {
   const tableHooks: PluginHook<D>[] = [
@@ -161,6 +165,8 @@ export default typedMemo(function DataTable<D extends object>({
   const globalControlRef = useRef<HTMLDivElement>(null);
   const paginationRef = useRef<HTMLDivElement>(null);
   const wrapperRef = userWrapperRef || defaultWrapperRef;
+  // `initialWidth` and `initialHeight` could be also parameters like `100%`
+  // `Number` returns `NaN` on them, then we fallback to computed size
   const paginationData = JSON.stringify(serverPaginationData);
 
   const defaultGetTableSize = useCallback(() => {
@@ -201,6 +207,8 @@ export default typedMemo(function DataTable<D extends object>({
   );
 
   const {
+    // filtered/sorted rows BEFORE pagination
+    rows,
     getTableProps,
     getTableBodyProps,
     prepareRow,
@@ -423,6 +431,46 @@ export default typedMemo(function DataTable<D extends object>({
     resultOnPageChange = (pageNumber: number) =>
       onServerPaginationChange(pageNumber, serverPageSize);
   }
+
+  // Emit filtered rows to parent in client-side mode (debounced via RAF)
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  const rafRef = useRef<number | null>(null);
+  const lastSigRef = useRef<string>('');
+
+  useEffect(() => {
+    if (serverPagination || typeof onFilteredRowsChange !== 'function') {
+      return;
+    }
+
+    const filtered = rows.map(r => r.original as D);
+    const len = filtered.length;
+    const first = len ? Object.values(filtered[0] as any)[0] : ''; // first row’s first value
+    const last = len ? Object.values(filtered[len - 1] as any)[0] : ''; // last row’s first value
+    const sig = `${len}|${String(first)}|${String(last)}`;
+
+    if (sig !== lastSigRef.current) {
+      lastSigRef.current = sig;
+
+      rafRef.current = requestAnimationFrame(() => {
+        if (isMountedRef.current) onFilteredRowsChange(filtered);
+      });
+    }
+
+    // clean up
+    return () => {
+      if (rafRef.current != null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+    };
+  }, [rows, serverPagination, onFilteredRowsChange]);
 
   return (
     <div

@@ -122,4 +122,6 @@ interface TableOwnState {
   sortColumn?: string;
   sortOrder?: 'asc' | 'desc';
   searchText?: string;
+  // Stores the current client-side table view after filtering or sorting
+  clientView?: ClientViewSnapshot;
 }

@@ -20,22 +20,30 @@
 import { SetDataMaskHook } from '@superset-ui/core';
 import { TableOwnState } from '../types/react-table';
 
+/**
+ * Keep the API small & version-agnostic:
+ * - No functional updater (not supported in your build)
+ * - Only touch ownState; caller decides what to merge in
+ */
+
 export const updateExternalFormData = (
   setDataMask: SetDataMaskHook = () => {},
   pageNumber: number,
   pageSize: number,
-) =>
+) => {
   setDataMask({
     ownState: {
       currentPage: pageNumber,
       pageSize,
     },
   });
+};
 
 export const updateTableOwnState = (
   setDataMask: SetDataMaskHook = () => {},
   modifiedOwnState: TableOwnState,
-) =>
+) => {
   setDataMask({
     ownState: modifiedOwnState,
   });
+};
