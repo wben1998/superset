@@ -1228,7 +1228,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
     }
   };
 
-  // ---- NEW: collect client-side filtered rows for export & push snapshot to ownState (guarded)
+  // collect client-side filtered rows for export & push snapshot to ownState (guarded)
   const [clientViewRows, setClientViewRows] = useState<DataRecord[]>([]);
 
   const exportColumns = useMemo(
@@ -1262,7 +1262,6 @@ export default function TableChart<D extends DataRecord = DataRecord>(
       });
     }
   }, [clientViewRows, exportColumns, serverPagination, setDataMask, serverPaginationData]);
-  // ----
 
   return (
     <Styles>

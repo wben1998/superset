@@ -89,7 +89,7 @@ export interface DataTableProps<D extends object> extends TableOptions<D> {
   onSearchColChange: (searchCol: string) => void;
   searchOptions: SearchOption[];
 
-  /** Emits filtered rows (client-side search) to parent; used for client export */
+  // passes current filtered rows to parent
   onFilteredRowsChange?: (rows: D[]) => void;
 }
 
@@ -173,6 +173,9 @@ export default typedMemo(function DataTable<D extends object>({
     hasPagination || !!searchInput || renderTimeComparisonDropdown;
   const initialState = {
     ...initialState_,
+    // zero length means all pages, the `usePagination` plugin does not
+    // understand pageSize = 0
+    // sortBy: sortByRef.current,
     sortBy: serverPagination ? sortByFromParent : sortByRef.current,
     pageSize: initialPageSize > 0 ? initialPageSize : resultsSize || 10,
   };
@@ -184,6 +187,8 @@ export default typedMemo(function DataTable<D extends object>({
 
   const defaultGetTableSize = useCallback(() => {
     if (wrapperRef.current) {
+      // `initialWidth` and `initialHeight` could be also parameters like `100%`
+      // `Number` returns `NaN` on them, then we fallback to computed size
       const width = Number(initialWidth) || wrapperRef.current.clientWidth;
       const height =
         (Number(initialHeight) || wrapperRef.current.clientHeight) -
@@ -218,7 +223,7 @@ export default typedMemo(function DataTable<D extends object>({
   );
 
   const {
-    rows, // filtered/sorted rows BEFORE pagination
+    rows, // filtered/sorted rows before pagination
     getTableProps,
     getTableBodyProps,
     prepareRow,
@@ -266,7 +271,7 @@ export default typedMemo(function DataTable<D extends object>({
     [manualSearch, onSearchChange, setGlobalFilter],
   );
 
-  // update sortBy into own state (server mode)
+  // updating the sort by to the own State of table viz
   useEffect(() => {
     const serverSortBy = serverPaginationData?.sortBy || [];
 
@@ -287,7 +292,6 @@ export default typedMemo(function DataTable<D extends object>({
         handleSortByChange([]);
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sortBy]);
 
   // make setPageSize accept 0
@@ -337,6 +341,7 @@ export default typedMemo(function DataTable<D extends object>({
       const colToBeMoved = currentCols.splice(columnBeingDragged, 1);
       currentCols.splice(newPosition, 0, colToBeMoved[0]);
       setColumnOrder(currentCols);
+      // toggle value in TableChart to trigger column width recalc
       onColumnOrderChange();
     }
     e.preventDefault();
@@ -406,9 +411,11 @@ export default typedMemo(function DataTable<D extends object>({
     </table>
   );
 
-  // page size sync
+  // force update the pageSize when it's been update from the initial state
   if (
     pageSizeRef.current[0] !== initialPageSize ||
+    // when initialPageSize stays as zero, but total number of records changed,
+    // we'd also need to update page size
     (initialPageSize === 0 && pageSizeRef.current[1] !== resultsSize)
   ) {
     pageSizeRef.current = [initialPageSize, resultsSize];
@@ -460,8 +467,8 @@ export default typedMemo(function DataTable<D extends object>({
 
     const filtered = rows.map(r => r.original as D);
     const len = filtered.length;
-    const first = len ? Object.values(filtered[0] as any)[0] : '';
-    const last = len ? Object.values(filtered[len - 1] as any)[0] : '';
+    const first = len ? Object.values(filtered[0] as any)[0] : ''; // first row’s first value
+    const last = len ? Object.values(filtered[len - 1] as any)[0] : ''; // last row’s first value
     const sig = `${len}|${String(first)}|${String(last)}`;
 
     if (sig !== lastSigRef.current) {
@@ -472,6 +479,7 @@ export default typedMemo(function DataTable<D extends object>({
       });
     }
 
+    // clean up
     return () => {
       if (rafRef.current != null) {
         cancelAnimationFrame(rafRef.current);
