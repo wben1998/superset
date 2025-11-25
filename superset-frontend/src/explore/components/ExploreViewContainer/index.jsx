@@ -249,11 +249,13 @@ function setSidebarWidths(key, dimension) {
 
 // Chart types that use aggregation and can have multiple values in tooltips
 const AGGREGATED_CHART_TYPES = [
+  // Deck.gl aggregated charts
   'deck_screengrid',
   'deck_heatmap',
   'deck_contour',
   'deck_hex',
   'deck_grid',
+  // Other aggregated chart types can be added here
   'heatmap',
   'treemap',
   'sunburst',
@@ -600,7 +602,7 @@ function ExploreViewContainer(props) {
     }
   });
 
-  // 🔒 Prevent re-query loops: ignore clientView-only changes
+  // Prevent re-query loops: ignore clientView-only changes
   const previousOwnState = usePrevious(props.ownState);
   useEffect(() => {
     const strip = s => (s && typeof s === 'object' ? omit(s, ['clientView']) : s);
@@ -608,7 +610,6 @@ function ExploreViewContainer(props) {
       onQuery();
       reRenderChart();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.ownState]);
 
   if (chartIsStale) {
@@ -943,7 +944,7 @@ function mapStateToProps(state) {
 
   const slice_id = form_data.slice_id ?? slice?.slice_id ?? 0; // 0 - unsaved chart
 
-  // 🚫 exclude clientView from extra_form_data; keep other ownState pieces
+  // Exclude clientView from extra_form_data; keep other ownState pieces
   const ownStateForQuery = omit(dataMask[slice_id]?.ownState, ['clientView']);
 
   form_data.extra_form_data = mergeExtraFormData(

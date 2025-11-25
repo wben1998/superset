@@ -122,7 +122,5 @@ interface TableOwnState {
   sortColumn?: string;
   sortOrder?: 'asc' | 'desc';
   searchText?: string;
-
-  // NEW
   clientView?: ClientViewSnapshot;
 }

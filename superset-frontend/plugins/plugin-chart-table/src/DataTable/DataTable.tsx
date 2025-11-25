@@ -173,6 +173,9 @@ export default typedMemo(function DataTable<D extends object>({
     hasPagination || !!searchInput || renderTimeComparisonDropdown;
   const initialState = {
     ...initialState_,
+    // zero length means all pages, the `usePagination` plugin does not
+    // understand pageSize = 0
+    // sortBy: sortByRef.current,
     sortBy: serverPagination ? sortByFromParent : sortByRef.current,
     pageSize: initialPageSize > 0 ? initialPageSize : resultsSize || 10,
   };
@@ -180,6 +183,8 @@ export default typedMemo(function DataTable<D extends object>({
   const globalControlRef = useRef<HTMLDivElement>(null);
   const paginationRef = useRef<HTMLDivElement>(null);
   const wrapperRef = userWrapperRef || defaultWrapperRef;
+  // `initialWidth` and `initialHeight` could be also parameters like `100%`
+  // `Number` returns `NaN` on them, then we fallback to computed size
   const paginationData = JSON.stringify(serverPaginationData);
 
   const defaultGetTableSize = useCallback(() => {
@@ -218,7 +223,8 @@ export default typedMemo(function DataTable<D extends object>({
   );
 
   const {
-    rows, // filtered/sorted rows BEFORE pagination
+    // filtered/sorted rows BEFORE pagination
+    rows,
     getTableProps,
     getTableBodyProps,
     prepareRow,
@@ -266,7 +272,7 @@ export default typedMemo(function DataTable<D extends object>({
     [manualSearch, onSearchChange, setGlobalFilter],
   );
 
-  // update sortBy into own state (server mode)
+  // updating the sort by to the own State of table viz
   useEffect(() => {
     const serverSortBy = serverPaginationData?.sortBy || [];
 
@@ -287,7 +293,6 @@ export default typedMemo(function DataTable<D extends object>({
         handleSortByChange([]);
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sortBy]);
 
   // make setPageSize accept 0
@@ -310,7 +315,7 @@ export default typedMemo(function DataTable<D extends object>({
 
   if (!columns || columns.length === 0) {
     return (
-      (wrapStickyTable ? wrapStickyTable(getNoResults) : getNoResults())
+      wrapStickyTable ? wrapStickyTable(getNoResults) : getNoResults()
     ) as JSX.Element;
   }
 
@@ -337,6 +342,7 @@ export default typedMemo(function DataTable<D extends object>({
       const colToBeMoved = currentCols.splice(columnBeingDragged, 1);
       currentCols.splice(newPosition, 0, colToBeMoved[0]);
       setColumnOrder(currentCols);
+      // toggle value in TableChart to trigger column width recalc
       onColumnOrderChange();
     }
     e.preventDefault();
@@ -406,9 +412,11 @@ export default typedMemo(function DataTable<D extends object>({
     </table>
   );
 
-  // page size sync
+  // force update the pageSize when it's been update from the initial state
   if (
     pageSizeRef.current[0] !== initialPageSize ||
+    // when initialPageSize stays as zero, but total number of records changed,
+    // we'd also need to update page size
     (initialPageSize === 0 && pageSizeRef.current[1] !== resultsSize)
   ) {
     pageSizeRef.current = [initialPageSize, resultsSize];

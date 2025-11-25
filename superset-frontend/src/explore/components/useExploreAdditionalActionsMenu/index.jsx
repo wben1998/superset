@@ -1,5 +1,20 @@
 /**
  * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  * or more contributor license agreements...
  */
 import { useCallback, useMemo, useState } from 'react';
@@ -66,8 +81,7 @@ const MENU_KEYS = {
   VIEW_QUERY: 'view_query',
   RUN_IN_SQL_LAB: 'run_in_sql_lab',
   EXPORT_TO_PIVOT_XLSX: 'export_to_pivot_xlsx',
-
-  // Current View → CSV
+  // NEW: Export current view options
   EXPORT_CURRENT_TO_CSV: 'export_current_to_csv',
 };
 
@@ -134,7 +148,7 @@ export const useExploreAdditionalActionsMenu = (
     state => state.charts?.[getChartKey(state.explore)],
   );
 
-  // Reports menu item
+  // Use the updated report menu items hook
   const reportMenuItem = useHeaderReportMenuItems({
     chart,
     showReportModal,
@@ -143,12 +157,13 @@ export const useExploreAdditionalActionsMenu = (
 
   const { datasource } = latestQueryFormData;
 
-  // Dashboards submenu items
+  // Get dashboard menu items using the hook
   const dashboardMenuItems = useDashboardsMenuItems({
     chartId: slice?.slice_id,
     dashboards,
     searchTerm: debouncedDashboardSearchTerm,
   });
+
   const showDashboardSearch = dashboards?.length > SEARCH_THRESHOLD;
 
   const shareByEmail = useCallback(async () => {
@@ -213,7 +228,9 @@ export const useExploreAdditionalActionsMenu = (
 
   const copyLink = useCallback(async () => {
     try {
-      if (!latestQueryFormData) throw new Error();
+      if (!latestQueryFormData) {
+        throw new Error();
+      }
       await copyTextToClipboard(() => getChartPermalink(latestQueryFormData));
       addSuccessToast(t('Copied to clipboard!'));
     } catch (error) {
@@ -221,7 +238,7 @@ export const useExploreAdditionalActionsMenu = (
     }
   }, [addDangerToast, addSuccessToast, latestQueryFormData]);
 
-  // Minimal client-side CSV builder used for "Current View" when pagination is disabled
+  // When pagination is disabled, client-side CSV builder used for "Current View"
   const downloadClientCSV = (rows, columns, filename) => {
     if (!rows?.length || !columns?.length) return;
     const esc = v => {
@@ -245,7 +262,7 @@ export const useExploreAdditionalActionsMenu = (
     URL.revokeObjectURL(link.href);
   };
 
-  // Robust client-side JSON for "Current View"
+  // When pagination is disabled, client-side JSON builder used for "Current View"
   const downloadClientJSON = (rows, columns, filename) => {
     if (!rows?.length || !columns?.length) return;
 
@@ -287,11 +304,11 @@ export const useExploreAdditionalActionsMenu = (
     URL.revokeObjectURL(link.href);
   };
 
-  // NEW: Client-side XLSX for "Current View" (uses 'xlsx' already in deps)
+  // When pagination is disabled, client-side XLSX builder used for "Current View"
   const downloadClientXLSX = async (rows, columns, filename) => {
     if (!rows?.length || !columns?.length) return;
     try {
-      const XLSX = (await import(/* webpackChunkName: "xlsx" */ 'xlsx')).default;
+      const XLSX = (await import('xlsx')).default;
 
       // Build a flat array of objects keyed by backend column key
       const data = rows.map(r => {
@@ -359,13 +376,23 @@ export const useExploreAdditionalActionsMenu = (
         disabled: true,
       });
     }
-    dashboardMenuItems.forEach(item => dashboardsChildren.push(item));
+
+
+    // Add dashboard items
+    dashboardMenuItems.forEach(item => {
+      dashboardsChildren.push(item);
+    });
+
+
     menuItems.push({
       key: MENU_KEYS.DASHBOARDS_ADDED_TO,
       type: 'submenu',
       label: t('On dashboards'),
       children: dashboardsChildren,
-      popupStyle: { maxHeight: '300px', overflow: 'auto' },
+      popupStyle: { 
+        maxHeight: '300px', 
+        overflow: 'auto' 
+      },
     });
 
     menuItems.push({ type: 'divider' });
@@ -412,8 +439,11 @@ export const useExploreAdditionalActionsMenu = (
           icon: <Icons.FileOutlined />,
           disabled: !canDownloadCSV,
           onClick: () => {
-            const sel = `#chart-id-${slice?.slice_id}`;
-            exportPivotExcel(`${sel} .pvtTable`, slice?.slice_name ?? t('pivoted_xlsx'));
+            const sliceSelector = `#chart-id-${slice?.slice_id}`;
+            exportPivotExcel(
+              `${sliceSelector} .pvtTable`,
+              slice?.slice_name ?? t('pivoted_xlsx'),
+            );
             setIsDropdownVisible(false);
             dispatch(
               logEvent(LOG_ACTIONS_CHART_DOWNLOAD_AS_XLS, {
