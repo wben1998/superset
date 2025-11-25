@@ -19,6 +19,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useDebounceValue } from 'src/hooks/useDebounceValue';
+import { getChartMetadataRegistry } from '@superset-ui/core';
 import {
   css,
   isFeatureEnabled,
@@ -164,6 +165,12 @@ export const useExploreAdditionalActionsMenu = (
   });
 
   const showDashboardSearch = dashboards?.length > SEARCH_THRESHOLD;
+  const vizType = latestQueryFormData?.viz_type;
+  const meta = vizType ? getChartMetadataRegistry().get(vizType) : undefined
+
+  // Detect if the chart plugin exposes the export-current-view behavior
+  const hasExportCurrentView = !!meta?.behaviors?.includes('EXPORT_CURRENT_VIEW');
+  const showCurrentView = vizType === 'table' && hasExportCurrentView;
 
   const shareByEmail = useCallback(async () => {
     try {
@@ -640,12 +647,14 @@ export const useExploreAdditionalActionsMenu = (
           label: t('Export All Data'),
           children: allDataChildren,
         },
-        {
-          key: MENU_KEYS.EXPORT_CURRENT_VIEW_GROUP,
-          type: 'submenu',
-          label: t('Export Current View'),
-          children: currentViewChildren,
-        },
+        ...(showCurrentView
+          ? [{
+              key: MENU_KEYS.EXPORT_CURRENT_VIEW_GROUP,
+              type: 'submenu',
+              label: t('Export Current View'),
+              children: currentViewChildren,
+            }]
+          : []),
       ],
     });
 
