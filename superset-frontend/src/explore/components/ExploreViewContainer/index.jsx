@@ -611,7 +611,6 @@ function ExploreViewContainer(props) {
       onQuery();
       reRenderChart();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.ownState]);
 
   if (chartIsStale) {
@@ -945,8 +944,7 @@ function mapStateToProps(state) {
   const form_data = isDeckGLChart ? getDeckGLFormData() : controlsBasedFormData;
 
   const slice_id = form_data.slice_id ?? slice?.slice_id ?? 0; // 0 - unsaved chart
-
-  // exclude clientView from extra_form_data; keep other ownState pieces
+  // Exclude clientView from extra_form_data; keep other ownState pieces
   const ownStateForQuery = omit(dataMask[slice_id]?.ownState, ['clientView']);
 
   form_data.extra_form_data = mergeExtraFormData(

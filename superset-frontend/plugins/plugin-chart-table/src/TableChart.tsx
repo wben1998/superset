@@ -1228,6 +1228,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
     }
   };
 
+
   // collect client-side filtered rows for export & push snapshot to ownState (guarded)
   const [clientViewRows, setClientViewRows] = useState<DataRecord[]>([]);
 

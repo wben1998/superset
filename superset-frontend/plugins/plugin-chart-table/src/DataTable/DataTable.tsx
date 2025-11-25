@@ -183,6 +183,8 @@ export default typedMemo(function DataTable<D extends object>({
   const globalControlRef = useRef<HTMLDivElement>(null);
   const paginationRef = useRef<HTMLDivElement>(null);
   const wrapperRef = userWrapperRef || defaultWrapperRef;
+  // `initialWidth` and `initialHeight` could be also parameters like `100%`
+  // `Number` returns `NaN` on them, then we fallback to computed size
   const paginationData = JSON.stringify(serverPaginationData);
 
   const defaultGetTableSize = useCallback(() => {
@@ -223,7 +225,8 @@ export default typedMemo(function DataTable<D extends object>({
   );
 
   const {
-    rows, // filtered/sorted rows before pagination
+    // filtered/sorted rows BEFORE pagination
+    rows,
     getTableProps,
     getTableBodyProps,
     prepareRow,
@@ -314,7 +317,7 @@ export default typedMemo(function DataTable<D extends object>({
 
   if (!columns || columns.length === 0) {
     return (
-      (wrapStickyTable ? wrapStickyTable(getNoResults) : getNoResults())
+      wrapStickyTable ? wrapStickyTable(getNoResults) : getNoResults()
     ) as JSX.Element;
   }
 
