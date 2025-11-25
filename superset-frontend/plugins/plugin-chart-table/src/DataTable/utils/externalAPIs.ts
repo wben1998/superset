@@ -17,25 +17,35 @@
  * under the License.
  */
 
-import { SetDataMaskHook } from '@superset-ui/core';
-import { TableOwnState } from '../types/react-table';
+import type { SetDataMaskHook } from '@superset-ui/core';
+import type { TableOwnState } from '../types/react-table';
+
+/**
+ * Keep the API small & version-agnostic:
+ * - No functional updater (not supported in your build)
+ * - Only touch ownState; caller decides what to merge in
+ */
 
 export const updateExternalFormData = (
   setDataMask: SetDataMaskHook = () => {},
   pageNumber: number,
   pageSize: number,
-) =>
+) => {
   setDataMask({
+    // leave extraFormData/filterState untouched (explore reducer merges per key)
     ownState: {
       currentPage: pageNumber,
       pageSize,
     },
   });
+};
 
 export const updateTableOwnState = (
   setDataMask: SetDataMaskHook = () => {},
   modifiedOwnState: TableOwnState,
-) =>
+) => {
   setDataMask({
+    // only update ownState; caller already merged any prior state (e.g. serverPaginationData)
     ownState: modifiedOwnState,
   });
+};

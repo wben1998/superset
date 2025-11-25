@@ -88,6 +88,9 @@ export interface DataTableProps<D extends object> extends TableOptions<D> {
   searchInputId?: string;
   onSearchColChange: (searchCol: string) => void;
   searchOptions: SearchOption[];
+
+  /** Emits filtered rows (client-side search) to parent; used for client export */
+  onFilteredRowsChange?: (rows: D[]) => void;
 }
 
 export interface RenderHTMLCellProps extends HTMLProps<HTMLTableCellElement> {
@@ -148,6 +151,7 @@ export default typedMemo(function DataTable<D extends object>({
   searchInputId,
   onSearchColChange,
   searchOptions,
+  onFilteredRowsChange,
   ...moreUseTableOptions
 }: DataTableProps<D>): JSX.Element {
   const tableHooks: PluginHook<D>[] = [
@@ -169,9 +173,6 @@ export default typedMemo(function DataTable<D extends object>({
     hasPagination || !!searchInput || renderTimeComparisonDropdown;
   const initialState = {
     ...initialState_,
-    // zero length means all pages, the `usePagination` plugin does not
-    // understand pageSize = 0
-    // sortBy: sortByRef.current,
     sortBy: serverPagination ? sortByFromParent : sortByRef.current,
     pageSize: initialPageSize > 0 ? initialPageSize : resultsSize || 10,
   };
@@ -183,8 +184,6 @@ export default typedMemo(function DataTable<D extends object>({
 
   const defaultGetTableSize = useCallback(() => {
     if (wrapperRef.current) {
-      // `initialWidth` and `initialHeight` could be also parameters like `100%`
-      // `Number` returns `NaN` on them, then we fallback to computed size
       const width = Number(initialWidth) || wrapperRef.current.clientWidth;
       const height =
         (Number(initialHeight) || wrapperRef.current.clientHeight) -
@@ -219,6 +218,7 @@ export default typedMemo(function DataTable<D extends object>({
   );
 
   const {
+    rows, // filtered/sorted rows BEFORE pagination
     getTableProps,
     getTableBodyProps,
     prepareRow,
@@ -266,7 +266,7 @@ export default typedMemo(function DataTable<D extends object>({
     [manualSearch, onSearchChange, setGlobalFilter],
   );
 
-  // updating the sort by to the own State of table viz
+  // update sortBy into own state (server mode)
   useEffect(() => {
     const serverSortBy = serverPaginationData?.sortBy || [];
 
@@ -287,6 +287,7 @@ export default typedMemo(function DataTable<D extends object>({
         handleSortByChange([]);
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sortBy]);
 
   // make setPageSize accept 0
@@ -309,7 +310,7 @@ export default typedMemo(function DataTable<D extends object>({
 
   if (!columns || columns.length === 0) {
     return (
-      wrapStickyTable ? wrapStickyTable(getNoResults) : getNoResults()
+      (wrapStickyTable ? wrapStickyTable(getNoResults) : getNoResults())
     ) as JSX.Element;
   }
 
@@ -336,7 +337,6 @@ export default typedMemo(function DataTable<D extends object>({
       const colToBeMoved = currentCols.splice(columnBeingDragged, 1);
       currentCols.splice(newPosition, 0, colToBeMoved[0]);
       setColumnOrder(currentCols);
-      // toggle value in TableChart to trigger column width recalc
       onColumnOrderChange();
     }
     e.preventDefault();
@@ -406,11 +406,9 @@ export default typedMemo(function DataTable<D extends object>({
     </table>
   );
 
-  // force update the pageSize when it's been update from the initial state
+  // page size sync
   if (
     pageSizeRef.current[0] !== initialPageSize ||
-    // when initialPageSize stays as zero, but total number of records changed,
-    // we'd also need to update page size
     (initialPageSize === 0 && pageSizeRef.current[1] !== resultsSize)
   ) {
     pageSizeRef.current = [initialPageSize, resultsSize];
@@ -442,6 +440,45 @@ export default typedMemo(function DataTable<D extends object>({
     resultOnPageChange = (pageNumber: number) =>
       onServerPaginationChange(pageNumber, serverPageSize);
   }
+
+  // Emit filtered rows to parent in client-side mode (debounced via RAF)
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  const rafRef = useRef<number | null>(null);
+  const lastSigRef = useRef<string>('');
+
+  useEffect(() => {
+    if (serverPagination || typeof onFilteredRowsChange !== 'function') {
+      return;
+    }
+
+    const filtered = rows.map(r => r.original as D);
+    const len = filtered.length;
+    const first = len ? Object.values(filtered[0] as any)[0] : '';
+    const last = len ? Object.values(filtered[len - 1] as any)[0] : '';
+    const sig = `${len}|${String(first)}|${String(last)}`;
+
+    if (sig !== lastSigRef.current) {
+      lastSigRef.current = sig;
+
+      rafRef.current = requestAnimationFrame(() => {
+        if (isMountedRef.current) onFilteredRowsChange(filtered);
+      });
+    }
+
+    return () => {
+      if (rafRef.current != null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+    };
+  }, [rows, serverPagination, onFilteredRowsChange]);
 
   return (
     <div
